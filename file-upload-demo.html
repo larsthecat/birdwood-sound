@@ -304,7 +304,7 @@ async function initBirdPredictionModel() {
     const birds = await setBirdLabels()
     addProgress(20)
     document.getElementById('progress_text').innerText = 'Loading BirdNET model (60 Mb)...'
-    const BirdNetWorker = new Worker('birdnet.js')
+    const BirdNetWorker = new Worker('birdnet.js?fast_fft=on')
     await new Promise(resolve => {
         function onMessage({ data }) {
             if (data.message === 'loading') {

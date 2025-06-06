@@ -2,9 +2,6 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>BirdNet web inference test</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgpu/dist/tf-backend-webgpu.js"></script>
-    <script src="birdnet.js"></script>
     <style>
       html, body {
           font-size: 15px;
@@ -24,17 +21,14 @@
     <div id="log"></div>
     <script>
       window.wave = null
-      window.tfModel = null
+      window.BirdNetWorker = null
       window.birds = null
-      window.useFastFFT = false
       async function runBirdNet() {
-        await tf.ready()
         const params = new URL(location).searchParams
-        const profile = params.get('profile') === 'on'
-        window.useFastFFT = params.get('fast_fft') === 'on'
-        await tf.setBackend(params.get('backend') || 'cpu')
-        window.log.innerHTML = `tfjs backend: ${tf.getBackend()}, profile: ${profile ? 'on' : 'off'}, fast_fft: ${window.useFastFFT ? 'on' : 'off'}<br/>`
-        if (!window.wave || !window.tfModel || !window.birds) {
+        const backend = new URL(location.href).searchParams.get('backend')
+        const useFastFFT = new URL(location.href).searchParams.get('fast_fft') === 'on'
+        window.log.innerHTML = `tfjs backend: ${backend}, fast_fft=${useFastFFT ? 'on' : 'off'}<br/>`
+        if (!window.wave || !window.BirdNetWorker || !window.birds) {
           window.log.innerHTML += `Loading birds list... `
           let start = performance.now()
           window.birds = (await fetch('models/birdnet/labels/en_us.txt').then(r => r.text())).split('\n')
@@ -42,48 +36,40 @@
 
           window.log.innerHTML += `Loading test audio data... `
           start = performance.now()
-          window.wave = tf.tensor([await fetch('wave.json').then(r => r.json())])
+          window.wave = await fetch('wave.json').then(r => r.json())
           window.log.innerHTML += `${Math.round(performance.now() - start)}ms [OK]<br/>`
 
           window.log.innerHTML += `Loading model... `
           start = performance.now()
-          window.tfModel = await tf.loadLayersModel('models/birdnet/model.json', {
-              weightPathPrefix: 'models/birdnet/',
+          window.BirdNetWorker = new Worker(`birdnet.js${location.search}`)
+          await new Promise(resolve => {
+            function onMessage({ data }) {
+              if (data.message === 'warmup') {
+                window.log.innerHTML += `${Math.round(performance.now() - start)}ms [OK]<br/>`
+                window.log.innerHTML += `Warm up... `
+                start = performance.now()
+              } else if (data.message === 'loaded') {
+                BirdNetWorker.removeEventListener('message', onMessage)
+                resolve()
+              }
+            }
+            BirdNetWorker.addEventListener('message', onMessage)
           })
-          window.log.innerHTML += `${Math.round(performance.now() - start)}ms [OK]<br/>`
-          window.log.innerHTML += `Warm up... `
-          await new Promise(resolve => setTimeout(resolve, 50)) // for UI to update before long sync operation
-          start = performance.now()
-          tf.engine().startScope()
-          await tfModel.predict(tf.zeros(wave.shape)).data()
-          tf.engine().endScope()
           window.log.innerHTML += `${Math.round(performance.now() - start)}ms [OK]<br/>`
         }
         window.log.innerHTML += `Inference... `
-        await new Promise(resolve => setTimeout(resolve, 50)) // for UI to update before long sync operation
         start = performance.now()
-        let prediction = null
-        if (profile) {
-          tf.engine().startScope()
-          const profile_info = await tf.profile(async () => {
-            prediction = await tfModel.predict(wave).data()
-          })
-          tf.engine().endScope()
-          profile_info.kernels.sort((a, b) => b.kernelTimeMs - a.kernelTimeMs)
-          let totalKernelsTime = 0
-          profile_info.kernels.forEach(k => { totalKernelsTime += k.kernelTimeMs })
-          console.log('profile_info:', profile_info)
-          window.log.innerHTML += `${Math.round(performance.now() - start)}ms, kernel time: ${Math.round(totalKernelsTime)}ms [OK]<br/>`
-          for (let kernel of profile_info.kernels.slice(0, 40)) {
-            if (kernel.kernelTimeMs < 1) { break }
-            window.log.innerHTML += `${kernel.name.padEnd(20, '.')} ${Math.round(kernel.kernelTimeMs)}ms<br/>`
-          }
-        } else {
-          tf.engine().startScope()
-          prediction = await tfModel.predict(wave).data()
-          tf.engine().endScope()
-          window.log.innerHTML += `${Math.round(performance.now() - start)}ms [OK]<br/>`
-        }
+        BirdNetWorker.postMessage({ message: 'predict', audioBuf: window.wave, batchSize: 1 })
+        const prediction = await new Promise(resolve => {
+            function onMessage({ data }) {
+                if (data.message === 'predict') {
+                    BirdNetWorker.removeEventListener('message', onMessage)
+                    resolve(data.prediction)
+                }
+            }
+            BirdNetWorker.addEventListener('message', onMessage)
+        })
+        window.log.innerHTML += `${Math.round(performance.now() - start)}ms [OK]<br/>`
         
         let guessList = []
         for (let i = 0; i < prediction.length; i++) {    

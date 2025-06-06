@@ -4,7 +4,15 @@ importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/tf-tfli
 tflite.setWasmPath('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/')
 
 async function main() {
-    await tf.ready()
+    const backend = new URL(location.href).searchParams.get('backend')
+    globalThis.useFastFFT = new URL(location.href).searchParams.get('fast_fft') === 'on'
+    console.log('WORKER | backend:', backend, 'useFastFFT:', useFastFFT)
+    if (backend) {
+        await tf.setBackend(backend)
+    } else {
+        await tf.ready()
+    }
+
     const areaModelPromise = tflite.loadTFLiteModel('models/birdnet/area-model.tflite')
     const BirdNetJS = await tf.loadLayersModel('models/birdnet/model.json', {
         weightPathPrefix: 'models/birdnet/',
