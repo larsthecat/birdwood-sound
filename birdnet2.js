@@ -1,9 +1,6 @@
 importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest')
-importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/tf-tflite.min.js')
-tflite.setWasmPath('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-tflite/dist/')
 
 main()
-
 async function main() {
     const navigatorLang = new URL(location.href).searchParams.get('lang')
     await tf.setBackend('webgl')
@@ -11,7 +8,7 @@ async function main() {
     postMessage({ message: 'warmup', progress: 70 })
     await BirdNetJS.warmup()
     postMessage({ message: 'load_geomodel', progress: 90 })
-    const areaModel = await tflite.loadTFLiteModel('models/birdnet/area-model.tflite')
+    const areaModel = await tf.loadGraphModel('/birdnet-web/models/birdnet/area-model/model.json')
     postMessage({ message: 'load_labels', progress: 95 })
     const supportedLanguages = ['af', 'da', 'en_us', 'fr', 'ja', 'no', 'ro', 'sl', 'tr', 'ar', 'de', 'es',
         'hu', 'ko', 'pl', 'ru', 'sv', 'uk', 'cs', 'en_uk', 'fi', 'it', 'nl', 'pt', 'sk', 'th', 'zh']
@@ -27,8 +24,8 @@ async function main() {
         }
     }
     postMessage({ message: 'loaded' })
-    const MIN_AUDIO_CONFIDENCE = 0.005
-    const MIN_AREA_CONFIDENCE = 0.005
+    const MIN_AUDIO_CONFIDENCE = 0.1
+    const MIN_AREA_CONFIDENCE = 0.1
     onmessage = async function({ data }) {
         if (data.message === 'predict') {
             const predictionList = await BirdNetJS.predict(tf.tensor(data.pcmAudio, BirdNetJS.shape))
