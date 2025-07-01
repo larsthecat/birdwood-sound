@@ -73,7 +73,7 @@ async function predictModel() {
         const spectrogramR = tf.transpose(spectrogram4d, [0, 2, 1, 3])
         spectrogram4d.dispose()
         const resTensor = BirdNetJS.predict(spectrogramR)
-        spectrogram.dispose()
+        spectrogramR.dispose()
         const result = await resTensor.array()
         resTensor.dispose()
         return result[0]

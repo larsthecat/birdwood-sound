@@ -136,6 +136,7 @@
     const MIN_AREA_CONFIDENCE = 0.0
     let AUDIO_CONFIDENCE = 0.3
     let AREA_THRESHOLD = 0.1
+    const SAMPLE_RATE = 48000
 
     document.getElementById('audio_file').style.display = 'block'
     document.getElementById('audio_file').onchange = (event) => processAudio(event).catch(e => {
@@ -154,15 +155,15 @@
         document.getElementById('progress_bar').value = 0
         let start = performance.now()
         const arrayBuffer = await file.arrayBuffer()
-        const tempCtx = new AudioContext({ sampleRate: 48000 })
+        const tempCtx = new AudioContext({ sampleRate: SAMPLE_RATE })
         const originalBuffer = await tempCtx.decodeAudioData(arrayBuffer)
         const pcm48k = new Float32Array(originalBuffer.getChannelData(0))
         tempCtx.close()
-        const audioLen = pcm48k.length / 48000
+        const audioLen = pcm48k.length / SAMPLE_RATE
         document.getElementById('log').innerHTML = `${audioLen | 0}s audio, decoded in ${((performance.now() - start) / 1000).toFixed(1)}s. Inference...<br />`
         start = performance.now()
-        const chunk3s = 48000 * 3
-        const offset = 0; // 48000 * 1
+        const chunk3s = SAMPLE_RATE * 3
+        const offset = 0; // SAMPLE_RATE * 1
         for (let k = 0; k < pcm48k.length; k += chunk3s - offset) {
             let audioBuf = pcm48k.slice(k, k + chunk3s)
             if (audioBuf.length < chunk3s) {
@@ -186,8 +187,8 @@
                 const audioConfidence = prediction[j]
                 const areaConfidence = (birds[j % 6522].areaScore || 1)
                 if (audioConfidence > MIN_AUDIO_CONFIDENCE && areaConfidence > MIN_AREA_CONFIDENCE) {
-                    const seconds = k / 48000 % 60
-                    const minutes = k / 48000 / 60 | 0
+                    const seconds = k / SAMPLE_RATE % 60
+                    const minutes = k / SAMPLE_RATE / 60 | 0
                     const time = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
                     const birdElem = document.createElement('li')
                     const visible = prediction[j] > AUDIO_CONFIDENCE && areaConfidence > AREA_THRESHOLD
