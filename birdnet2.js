@@ -13,8 +13,8 @@ async function main() {
     const supportedLanguages = ['af', 'da', 'en_us', 'fr', 'ja', 'no', 'ro', 'sl', 'tr', 'ar', 'de', 'es',
         'hu', 'ko', 'pl', 'ru', 'sv', 'uk', 'cs', 'en_uk', 'fi', 'it', 'nl', 'pt', 'sk', 'th', 'zh']
     const lang = supportedLanguages.find(l => l.startsWith(navigatorLang.split('-')[0])) || 'en_us'
-    const birdsList     = (await fetch('/birdnet-web/models/birdnet/labels/en_us.txt').then(r => r.text())).split('\n')
-    const birdsListI18n = (await fetch(`/birdnet-web/models/birdnet/labels/${lang}.txt`).then(r => r.text())).split('\n')
+    const birdsList     = (await fetch('/birdwood-sid/models/birdnet/labels/en_us.txt').then(r => r.text())).split('\n')
+    const birdsListI18n = (await fetch(`/birdwood-sid/models/birdnet/labels/${lang}.txt`).then(r => r.text())).split('\n')
     const birds = new Array(remap.length)
     for (let i = 0; i < remap.length; i++) {
         birds[i] = {
